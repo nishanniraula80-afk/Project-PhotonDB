@@ -1,7 +1,7 @@
 #ifndef PERSISTENCE_MANAGER_H
 #define PERSISTENCE_MANAGER_H
 
-#include "Database.h"
+#include "database.h"
 #include <string>
 
 class PersistenceManager {

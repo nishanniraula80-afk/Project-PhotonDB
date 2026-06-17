@@ -67,3 +67,22 @@ vcpkg_installed/
 # test output & cache
 Testing/
 .cache/
+
+# Ignore compiled binaries (executables)
+server
+client
+test
+*.out
+LatentZero
+
+# Ignore object files and debug symbols
+*.o
+*.dSYM/
+
+# Ignore the author's source code files
+src.tgz
+reference_src/
+
+# Ignore OS-specific files
+.DS_Store
+Thumbs.db
