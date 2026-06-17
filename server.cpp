@@ -5,20 +5,27 @@
 #include <cstring>
 #include <vector>
 
+// Helper function to read EXACTLY n bytes from a socket
+// This handles partial reads safely
 bool read_all(int fd, char *buf, size_t n) {
     while (n > 0) {
         ssize_t rv = read(fd, buf, n);
-        if (rv <= 0) return false; 
+        if (rv <= 0) {
+            return false; // Error or unexpected EOF
+        }
         buf += rv;
         n -= (size_t)rv;
     }
     return true;
 }
 
+// Helper function to write EXACTLY n bytes to a socket
 bool write_all(int fd, const char *buf, size_t n) {
     while (n > 0) {
         ssize_t rv = write(fd, buf, n);
-        if (rv <= 0) return false;
+        if (rv <= 0) {
+            return false; // Error
+        }
         buf += rv;
         n -= (size_t)rv;
     }
@@ -26,42 +33,47 @@ bool write_all(int fd, const char *buf, size_t n) {
 }
 
 void handle_client(int client_fd) {
+    // Max message size allowed (e.g., 64KB) to protect server memory
     const size_t K_MAX_MSG_SIZE = 65536; 
 
     while (true) {
+        // 1. Read the 4-byte header length
         uint32_t len = 0;
-        // Read 4-byte header
         if (!read_all(client_fd, (char*)&len, 4)) {
-            std::cout << "Client disconnected.\n";
+            std::cout << "Client disconnected or read error on header.\n";
             break;
         }
 
+        // Sanity check to prevent malicious clients from blowing up memory
         if (len > K_MAX_MSG_SIZE) {
             std::cerr << "Message too long: " << len << " bytes\n";
             break;
         }
 
-        // Read payload
-        std::vector<char> body(len + 1, 0); 
+        // 2. Read the body/payload based on the length read
+        std::vector<char> body(len + 1, 0); // +1 for null-terminator string printing
         if (!read_all(client_fd, body.data(), len)) {
             std::cerr << "Read error on body.\n";
             break;
         }
 
-        std::cout << "Client says: " << body.data() << "\n";
+        std::cout << "Client parsed request: " << body.data() << " (Length: " << len << ")\n";
 
-        // Send response header + payload
+        // 3. Craft a protocol-compliant response back to the client
         std::string reply = "ACK: " + std::string(body.data());
         uint32_t res_len = reply.length();
 
+        // Write 4-byte response header followed by response payload
         if (!write_all(client_fd, (char*)&res_len, 4) ||
             !write_all(client_fd, reply.c_str(), res_len)) {
             std::cerr << "Write error.\n";
             break;
         }
     }
+
     close(client_fd);
 }
+
 
 int main() {
     int server_fd = socket(AF_INET, SOCK_STREAM, 0);
